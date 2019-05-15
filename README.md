@@ -354,3 +354,114 @@ const debug = tag => {
 - https://stackoverflow.com/questions/9781218/how-to-change-node-jss-console-font-color
 
 
+- 현재 app.js에서 Application(서버 express), debug(debug모듈)을 불러오고
+- bin.js에서 실행하고 있다.
+
+# 6장
+
+## 정적 파일
+
+- 서버 자원(리소스)중에서 브라우져에 다운로드 하여 화면을 그리는 파일을 정적파일이라고 한다.
+
+```js
+public
+├── css
+│   └── style.css
+├── imgs
+│   └── twitter.png
+├── index.html
+└── js
+    └── script.js
+```
+
+```js
+const path = require('path')
+const fs = require('fs')
+
+const Application = () => {
+  const server = http.createServer((req, res) => {
+    // ...
+
+    const filePath = path.join(__dirname, '../public/index.html') // 모든 요청에 대해 index.html으로만 응답중
+    fs.readFile(filePath, (err, data) => {
+      if (err) throw err
+      
+      res.end(data)
+    })
+  });
+}
+```
+
+- `path, fs` 모듈 호출
+- `path.join`을 사용해 현재경로(`__dirname`)과 상대경로(`../public/index.html`) 위치 계산하여 `index.html`로 저장
+- `fs`모듈은 `readFie`함수로 경로의 파일을 읽는다. 에러체크 후 정상이면 `data`에 파일 내용이 문자열로 들어온다.
+- `res.end(data)` 함수로 파일 내용을 응답해준다.
+- 이렇게 하면 그냥 마크업이 출력된다. 왜냐하면 `http 헤더값인 res.setHeader('Content-Type', 'text/html')으로 설정한다.
+- 정상적으로 나오나 `css,js 등` 다른 정적파일을 보니 `index.html`파일의 내용을 똑같이 응답받는다. 
+- 모든 요청에 대해 index.html으로만 응답중
+
+``` js
+ const mimeType = {
+      '.ico': 'image/x-icon',
+      '.html': 'text/html',
+      '.js': 'text/javascript',
+      '.css': 'text/css',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.eot': 'appliaction/vnd.ms-fontobject',
+      '.ttf': 'aplication/font-sfnt'
+    }
+
+    const ext = path.parse(req.url).ext;
+    const publicPath = path.join(__dirname, '../public')
+
+    console.log("path.parse(req.url)", path.parse(req.url));
+    console.log(req.url);
+    if (Object.keys(mimeType).includes(ext)) {
+      fs.readFile(`${publicPath}${req.url}`, (err, data) => {
+        if (err) {
+          res.statusCode = 404;
+          res.end('Not Found')
+        } else { 
+          res.statusCode = 200;
+          res.setHeader('Content-Type', mimeType[ext]);
+          res.end(data)
+        }
+      })
+    } else {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/html');
+
+      const filePath = path.join(__dirname, '../public/index.html')
+      fs.readFile(filePath, (err, data) => {
+        if (err) throw err;
+
+        res.end(data);
+      })
+    }
+```
+
+- `mimeType` 딕셔너리를 만들어 확장자 키에 마임타임값을 사용
+- 요청 주소를 파싱해서 확장자에 따라  `content-type` 헤더 값을 동적으로 설정
+
+```js
+console.log(path.parse(req.url))
+{ root: '/',
+  dir: '/css',
+  base: 'style.css',
+  ext: '.css',
+  name: 'style' }
+
+// img, sciprt 이런식으로 나옴
+```
+
+- `path.parse()`로 주소를 파싱하여 `ext`키에 확장자 정보를 추출
+- 정적 파일은 모두 `public` 폴더에 있기 때문에 절대 경로를 계산하여 `publicPath`상수에 저장
+- `Object.keys`를 이용해 `ext`키를 포함하면 그 요청 url(`req.url`)를 사용하여 일치하는 파일을 응답해준다.
+
+- HTML, CSS, JS, IMAGE 처럼 브라우져에서 렌더링 되는 자원을 정적파일이라고 합니다.
+- MineType을 설정하여 정적 파일 제공 기능을 구현했습니다.
+
+# 7강
+
+## 

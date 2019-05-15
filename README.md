@@ -218,3 +218,139 @@ app.listen(port, hostname, () => {
 ```
 
 - `server`대신 `app`으로 변경
+- **http를 직접 사용하지 않고 Application 객체로 추상화 하였습니다.**
+
+# 5강
+
+## debug 모듈 만들기
+
+- debug 장점
+  - 태그를 지정한 로그 함수를 만들 수 있다.
+  - 태그별로 색상을 줘서 로그 식별이 수월하다.
+  - 아직 잘 모르겠다....
+
+```js
+const debug = require('debug')('my_tag')
+debug('my_log') // "my_tag my_log"
+```
+
+## 테스트 코드 만들기
+
+``` js
+// debug.spec.js
+// 필요한 모듈 상수 할당
+require('should'); // 왜이렇게 하는지? 작동은 잘됨
+const sinon = require('sinon');
+const debug = require('./debug');
+
+describe('debug', () => { // debug라는 환경 안에 생성이라는 환경에서 테스트
+    describe('생성', () => { // debug > 생성 > it 내용들 같음 진짜 테스트
+        it('태그명을 인자로 받는다 (없으면 예외를 던진다)', () => {
+            should(()=> debug()).throw();
+        })
+
+        it('함수를 반환한다', () => {
+            const debug = require('./debug')('mytag');
+            should(typeof debug).equal('function');
+        })
+    })
+
+    describe('반환된 함수', () => {
+        let debug, tag, msg;
+
+        beforeEach(() => {
+            tag = 'mytag';
+            debug = require('./debug')(tag);
+            msg = 'my log message';
+        })
+
+        it('tag + message 형식의 로그 문자열을 반환한다', () => {
+            const expected = `${tag} ${msg}`;
+            const actual = debug(msg);
+            actual.should.be.equal(expected);
+        })
+
+        it('로그 문자열을 인자로 console.log 함수를 실행한다.', () => {
+            sinon.spy(console, 'log');
+            const expected = `${tag} ${msg}`;
+
+            debug(msg);
+
+            sinon.assert.calledWith(console.log, expected);
+        })
+    })
+});
+```
+
+``` js
+const colors = [{
+        name: 'cyan',
+        value: '\x1b[36m'
+    },
+    {
+        name: 'yellow',
+        value: '\x1b[33m'
+    },
+    {
+        name: 'red',
+        value: '\x1b[31m'
+    },
+    {
+        name: 'green',
+        value: '\x1b[32m'
+    },
+    {
+        name: 'magenta',
+        value: '\x1b[35m'
+    },
+]
+const resetColor = '\x1b[0m'
+
+const debug = tag => {
+    const randIdx = Math.floor(Math.random() * colors.length) % colors.length
+    const color = colors[randIdx]
+    if (!tag) throw Error('tag should be required'); // 생성
+
+    return msg => { // 반환된 함수
+        const logString = `${color.value}[${tag}]${resetColor} ${msg}`;
+        console.log(logString);
+        return logString;
+    }
+}
+
+module.exports = debug;
+
+const debug = require('./utils/debug')('app')
+// 여기서 debug 함수에 첫번째 인자 tag가 'app'이 되고 함수가 return 될때 첫 인자가 2번재 인자가 된다. msg인자가 'log메세지'
+```
+
+## Debug 활용 color
+
+``` js
+//debug.js
+const colors = [
+  {name: 'cyan',     value: '\x1b[36m'},
+  {name: 'yellow',   value: '\x1b[33m'},
+  {name: 'red',      value: '\x1b[31m'},
+  {name: 'green',    value: '\x1b[32m'},
+  {name: 'magenta',  value: '\x1b[35m'},
+]
+const resetColor = '\x1b[0m'
+
+const debug = tag => {
+  const randIdx = Math.floor(Math.random() * colors.length) % colors.length
+  const color = colors[randIdx]
+
+    return msg => {
+    const logString = `${color.value}[${tag}]${resetColor} ${msg}`;
+    console.log(logString);
+    return logString;
+  }
+```
+
+- `console.log('\x1b[36m%s\x1b[0m', 'I am cyan')`
+- 문자코드 + 문자 + 리셋코드
+- 위와 같이 console 색상 변경 가능
+- https://stackoverflow.com/questions/9781218/how-to-change-node-jss-console-font-color
+
+

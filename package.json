@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha './src/**/*.spec.js*'"
+    "start": "node bin",
+    "test": "mocha './utils/**/*.spec.js*'"
   },
   "keywords": [],
   "author": "",

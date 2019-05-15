@@ -1,0 +1,19 @@
+{
+  "name": "node_web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha './src/**/*.spec.js*'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "mocha": "^6.1.4",
+    "should": "^13.2.3"
+  },
+  "dependencies": {
+    "sinon": "^7.3.2"
+  }
+}

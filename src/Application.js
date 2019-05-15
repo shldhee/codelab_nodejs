@@ -2,38 +2,12 @@ const http = require('http')
 const debug = require('../utils/debug')('Application')
 const path = require('path')
 const fs = require('fs')
+const serveStatic = require('./serve-static');
 
 const Application = () => {
   const _server = http.createServer((req, res) => {
-     
-    const mimeType = {
-      '.ico': 'image/x-icon',
-      '.html': 'text/html',
-      '.js': 'text/javascript',
-      '.css': 'text/css',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.eot': 'appliaction/vnd.ms-fontobject',
-      '.ttf': 'aplication/font-sfnt'
-    }
-
-    const ext = path.parse(req.url).ext;
-    const publicPath = path.join(__dirname, '../public')
-
-    console.log("path.parse(req.url)", path.parse(req.url));
-    console.log(req.url);
-    if (Object.keys(mimeType).includes(ext)) {
-      fs.readFile(`${publicPath}${req.url}`, (err, data) => {
-        if (err) {
-          res.statusCode = 404;
-          res.end('Not Found')
-        } else { 
-          res.statusCode = 200;
-          res.setHeader('Content-Type', mimeType[ext]);
-          res.end(data)
-        }
-      })
-    } else {
+      serveStatic(req, res); 
+    
       res.statusCode = 200;
       res.setHeader('Content-Type', 'text/html');
 
@@ -43,7 +17,6 @@ const Application = () => {
 
         res.end(data);
       })
-    }
 
   });
 

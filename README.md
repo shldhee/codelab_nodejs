@@ -464,4 +464,76 @@ console.log(path.parse(req.url))
 
 # 7강
 
+## 커스텀 모듈 serve-static 만들기
+
+- 이전에 정적파일을 모듈로 빼내자
+
+```js
+//serve-static
+const path = require('path')
+const fs = require('fs')
+
+const serveStatic = (req, res) => {
+  const mimeType = {
+    '.ico': 'image/x-icon',
+    '.html': 'text/html',
+    '.js': 'text/javascript',
+    '.css': 'text/css',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.eot': 'appliaction/vnd.ms-fontobject',
+    '.ttf': 'aplication/font-sfnt'
+  }
+
+  const ext = path.parse(req.url).ext;
+  const publicPath = path.join(__dirname, '../public')
+
+  if (Object.keys(mimeType).includes(ext)) {
+    fs.readFile(`${publicPath}${req.url}`, (err, data) => {
+      if (err) {
+        res.statusCode = 404;
+        res.end('Not Found')
+      } else {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', mimeType[ext]);
+        res.end(data)
+      }
+    })
+  }
+}
+
+module.exports = serveStatic;
+
+// Application.js
+const serveStatic = require('./serve-static')
+    
+const _server = http.createServer((req, res) => {
+  serveStatic(req, res) // serve-static 모듈 사용 
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html');
+
+  const filePath = path.join(__dirname, '../public/index.html')
+  fs.readFile(filePath, (err, data) => {
+    if (err) throw err;
+
+    res.end(data);
+  })
+});
+
+```
+
+- 요청이 오면 `serveStatic`모듈에 `req, res`인자를 넘겨서 실행
+- `js, css, image` 파일이 온다면 모듈에서 응답
+- `serveStatic()` 실행 후 다시 `index.html`을 응답하므로 2번 응답하게 되어 에러 발생
+- ` Can't set headers after they are sent.`
+- 하나의 요청에는 하나의 응답만 보내야 하는데 그렇지 않아 발생한 문제
+- `serveStatic` 모듈이 동기 구문?이라면 한파일에 있었을때는 `if/else`로 분기처리했지만, 모듈로 분리하면서 로직 제어가 힘들다.
+- 정적 파일을 모듈로 리팩토링하는 시도를 했습니다.
+- 비동기 로직을 제어하는 현 구조의 한계를 짚어 봤습니다.?
+
+# 8장
+
 ## 
+
+

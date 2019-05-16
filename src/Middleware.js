@@ -17,7 +17,7 @@ const Middleware = () => {
     const _run = (i, err) => {
            if (i < 0 || i >= _middlewares.length) return;
 
-        debug(`i:${i} _middlewares:${_middlewares.length}`)
+        // debug(`i:${i} _middlewares:${_middlewares.length}`)
 
         const nextMw = _middlewares[i]
         const next = (err) => _run(i + 1, err)
@@ -26,6 +26,11 @@ const Middleware = () => {
             const isNextErrorMw = nextMw.length === 4
 
             return isNextErrorMw ? nextMw(err, _req, _res, next) : _run(i + 1, err)
+        }
+
+        if( nextMw._path ) {
+            const pathMatched = _req.url === nextMw._path;
+            return pathMatched ? nextMw(_req, _res, next) : _run(i + 1)
         }
 
         nextMw(_req, _res, next);

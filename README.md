@@ -1,4 +1,10 @@
-# 1강
+
+
+http://jeonghwan-kim.github.io/series/2018/12/01/node-web-0_index.html
+
+따라하기 및 복습
+
+## 1강
 
 ``` js
 // package.json
@@ -33,7 +39,7 @@ module.exports = server
 - Warning: Cannot find any files matching pattern "$(find"
 - 윈도우에서 발생
 
-# 2강
+## 2강
 
 ```js
 const http = require('http'); // 노드 모듈을 가져온다 
@@ -84,7 +90,7 @@ curl locahlost:3000 -v // http 헤더까지 확인 가능
 < 응답 정보 : 200 상태코드, text/plain 
 ```
 
-# 3강
+## 3강
 
 - 리팩토링
 - server.js는 2가지 일을 한다.
@@ -133,7 +139,7 @@ server.listen(port, hostname, () => {
 npm ERR! Test failed.  See above for more details.
 ```
 
-# 4강
+## 4강
 
 ``` js
 const should = require('should');
@@ -220,9 +226,9 @@ app.listen(port, hostname, () => {
 - `server`대신 `app`으로 변경
 - **http를 직접 사용하지 않고 Application 객체로 추상화 하였습니다.**
 
-# 5강
+## 5강
 
-## debug 모듈 만들기
+### debug 모듈 만들기
 
 - debug 장점
   - 태그를 지정한 로그 함수를 만들 수 있다.
@@ -234,7 +240,7 @@ const debug = require('debug')('my_tag')
 debug('my_log') // "my_tag my_log"
 ```
 
-## 테스트 코드 만들기
+### 테스트 코드 만들기
 
 ``` js
 // debug.spec.js
@@ -324,7 +330,7 @@ const debug = require('./utils/debug')('app')
 // 여기서 debug 함수에 첫번째 인자 tag가 'app'이 되고 함수가 return 될때 첫 인자가 2번재 인자가 된다. msg인자가 'log메세지'
 ```
 
-## Debug 활용 color
+### Debug 활용 color
 
 ``` js
 //debug.js
@@ -359,7 +365,7 @@ const debug = tag => {
 
 # 6장
 
-## 정적 파일
+### 정적 파일
 
 - 서버 자원(리소스)중에서 브라우져에 다운로드 하여 화면을 그리는 파일을 정적파일이라고 한다.
 
@@ -462,9 +468,9 @@ console.log(path.parse(req.url))
 - HTML, CSS, JS, IMAGE 처럼 브라우져에서 렌더링 되는 자원을 정적파일이라고 합니다.
 - MineType을 설정하여 정적 파일 제공 기능을 구현했습니다.
 
-# 7강
+## 7강
 
-## 커스텀 모듈 serve-static 만들기
+### 커스텀 모듈 serve-static 만들기
 
 - 이전에 정적파일을 모듈로 빼내자
 
@@ -534,7 +540,7 @@ const _server = http.createServer((req, res) => {
 
 # 8장
 
-## 미들웨어
+### 미들웨어
 
 - 서버는 요청에서부터 응답까지 하나의 흐름을 가지고 있습니다.
 - 요청과 응답 사이에 실행되는 함수목록을 "미들웨어 함수"라고 하겠습니다.
@@ -556,7 +562,7 @@ const run = () => middlewares.forEach(mw => {
 })
 ```
 
-## Middleware 모듈
+### Middleware 모듈
 
 ```js
 require('should');
@@ -730,7 +736,7 @@ module.exports = Middleware;
 
 - 어려워지기 시작한다..
 
-## Middleware로 Application.user() 메소드 구현
+### Middleware로 Application.user() 메소드 구현
 
 - 어플리케이션 미들웨어 함수 등록을 `Application.use()` 메소드가 그 역할을 하도록 한다.
 - 이 메소드는 미들웨어의 `add()`를 호출해야 한다.
@@ -804,3 +810,441 @@ const serveStatic = () => (req, res, next) => { // 미들웨어 함수 인터페
 
 module.exports = serveStatic;
 ```
+
+# 10장
+
+### Logger Middleware
+
+- 요청이 와도 서버 터미널에 아무런 정보가 없습니다. 서버 로그를 기록하는 `logger` 미들웨어를 만들자(morgan과 비슷)
+
+```js
+//middlewares/logger.js
+const logger = () => (req, res, next) => {
+  const log = `${req.method} ${req.url}`
+  console.log(log)
+  next()
+}
+
+module.exports = logger
+```
+
+- 미들웨어 함수이므로 `(req, res, next)` 인터페이스를 맞춘다.
+- 로그 메세지는 메소드명(req.method), URL(req.url)을 합쳐서 출력
+- 미들웨어 이므로 `next()`는 꼭 실행
+
+```js
+// app.js
+// ...
+const logger = require('./middlewares/logger');
+
+app.use(logger()) // 로그 미들웨어 추가
+app.use(serveStatic())
+// ...
+```
+
+#### 로그 색상 추가
+
+``` js
+const colors = {
+    green: '\x1b[32m',
+    cyan: '\x1b[36m',
+    red: '\x1b[31m',
+    yellow: '\x1b[33m',
+    reset: '\x1b[0m',
+}
+
+const methodColorMap = {
+    get: colors.green,
+    post: colors.cyan,
+    put: colors.yellow,
+    delete: colors.red
+}
+
+const logger = () => (req, res, next) => {
+    const coloredMethod = (method = '') => {
+        return `${methodColorMap[method.toLowerCase()]}${method}${colors.reset}`
+    }
+
+    const log = `${coloredMethod(req.method)} ${req.url}`
+    console.log(log);
+    next();
+}
+
+module.exports = logger
+```
+
+- 요청 정보를 로깅하는 logger 미들웨어를 만들었습니다.
+
+## 11강
+
+### 라우터 use
+
+```js
+app.use(logger())
+app.use(serveStatic())
+app.use(index)
+app.use(error404)
+app.use(error)
+```
+
+- 현재 어플리케이션은 정적파일은 제외한 모든 요청을 index 미들웨어가 처리
+- "GET /foo"로 요청해도 index 미들웨어가 동작해서 index.html 파일 제공
+
+```js
+app.use('/', indexController)
+app.use('/foo', fooController)
+```
+
+- 특정 주소("/") 요청이 있을때 `indexController`, ("/foo")일땐 `fooController`
+
+```js
+const use = (path, fn) => {
+  if (typeof path === 'string' && typeof fn === 'function') {
+    fn._path = path;
+  } else if (typeof path == 'function') {
+    fn = path;
+  } else {
+    throw Error('Usage: use(path, fn) or use(fn)');
+  }
+
+  _middleware.add(fn);
+}
+```
+
+- 인자가 2개 들어올때 1개는 path(특정 주소), 1개는 fn(처리 함수)일때 fn._path에 path를 넣어 이 후 미들웨어를 실행할때 이 문자열과 요청 URL를 비교후 함수 실행
+- 인자가 1개면 미들웨어 실행 함수 이므로 fn = path으로 변경
+
+
+```js
+// Middleware.js
+    const _run = (i, err) => {
+           if (i < 0 || i >= _middlewares.length) return;
+
+        // debug(`i:${i} _middlewares:${_middlewares.length}`)
+
+        const nextMw = _middlewares[i]
+        const next = (err) => _run(i + 1, err)
+
+        if(err) {
+            const isNextErrorMw = nextMw.length === 4
+
+            return isNextErrorMw ? nextMw(err, _req, _res, next) : _run(i + 1, err)
+        }
+
+        if( nextMw._path ) {
+            const pathMatched = _req.url === nextMw._path;
+            return pathMatched ? nextMw(_req, _res, next) : _run(i + 1)
+        }
+
+        nextMw(_req, _res, next);
+    }
+```
+
+- `nextMw._path`가 `true`면 인자를 2개 받은거다.
+- 따라서 요청 url과 비교후 일치하면 미들웨어 함수 실행 아니면 다음 미들웨어로 넘어간다.
+
+
+``` js
+// router/index.js
+const path = require('path');
+const fs = require('fs');
+
+
+const listPosts = () => (req, res, next) => {
+    const publicPath = path.join(__dirname, '../public')
+    
+    fs.readFile(`${publicPath}/index.html`, (err, data) => {
+        if (err) throw err
+    
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'text/html')
+        res.end(data)
+    })
+}
+
+module.exports = {
+    listPosts
+}
+```
+
+- 미들웨어 반환 함수로 `()` 추가, `../public`으로 변경
+
+```js
+const error404 = () => (req, res, next) => {
+    res.statusCode = 404
+    res.end('Not Found')
+}
+
+const error = () => (err, req, res, next) => {
+    res.statusCode = 500
+    res.end()
+}
+
+module.exports = {
+    error404,
+    error
+}
+```
+
+- 미들웨어 errors도 생성
+- 만약 정의 되지 않은 경로, 가령 “/foo”로 요청을 한다고 합시다. 서버에서는 logger -> serveStatic 미들웨어까지 가다가 index.listPost는 건너 뛰어 버리겠죠. 경로가 맞지 않으니깐요. erros.error404 미들웨어를 만나게 되고 비로 Not Found 문자열을 응답하게 될 것입니다.
+
+- 경로에 따라 컨트롤러를 설정하는 use() 메소드를 구현했습니다.
+- 어플리케이션 코드를 단순하게 개선하였습니다.
+
+# 12장
+
+### 포스트 조회 API
+
+- `GET /api/posts` 요청했는데 404 NOT FOUND 응답
+
+```js
+const api {
+  getPosts() {
+    return http('get', '/api/posts')
+  }
+}
+
+const http = (method, url, data = null) => new Promise((resolve, reject) => {
+  const req = new  XMLHttpRequest()
+  req.open(method, url, true)
+  req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+  req.onreadystatechange = evt => // ...
+  req.send(data)
+}
+```
+
+- `getPosts()` 메소드는 http 요청 보내고 있다.
+- `GET`메소드와 `/api/posts` 주소로 `AJAX` 요청 보낸다.
+- 서버에서는 엔드포인트(end point)가 없기 때문에 `404`로 응답한것이 문제
+
+``` js
+//routes/api/posts.js
+const posts = [{
+        title: 'post 3',
+        body: 'this is post 3'
+    },
+    {
+        title: 'post 2',
+        body: 'this is post 2'
+    },
+    {
+        title: 'post 1',
+        body: 'this is post 1'
+    },
+]
+
+const index = () => (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(posts))
+}
+
+module.exports = {
+    index
+}
+```
+
+- "/api/posts" 요청에 대한 응답 컨트를러 함수를 만들자(미들웨어 함수로 인터페이스 맞춤)
+- `API`는 `JSON`형식을 사용하므로 `Content-Type`헤더를 `application/json`으로 맞춘다.
+- 문자열을 보낼땐 `JSON.stringify()` 함수 이용해 객체를 문자열로 변환
+
+``` js
+// app.js
+//...
+const apiPost = require('./routes/api/posts')
+
+app.use('/',index.listPosts())
+app.use('/api/posts', apiPost.index())
+app.use(errors.error404())
+//...
+```
+
+- 마지막으로 컨트롤러를 `app.js`에 `use()`메소드로 등록
+- index함수를 모듈로 노출. 기본적인 조회 기능이므로 함수 이름은 index!
+
+``` js
+api.getPosts()
+      .then(data => {
+        console.log(data);
+        el.innerHTML = data.reduce((html, post) => {
+          html += `
+            <h2>${post.title}</h2>
+            <div>${post.body}</div>
+          `
+          return html
+        }, '')
+      })
+      .catch(err => {
+        console.log(err)
+        el.innerHTML = 'Error: Refresh this page'
+      })
+```
+
+- `reduce`에서 html은 누적되면서 리턴해주고 post는 배열 요소이다.
+
+# 13장
+
+### 응답 객체
+
+- Response 모듈
+- 서버는 JSON 형식 데이터로 응답
+- 상태 코드를 포함한 헤더 설정도 모든 엔드 포인트에서 사용
+- 이러한 응답처리를 위한 Response 모듈 만들기
+- `http.createServer()`메소드 콜백함수가 인자로 받는 응답 객체 `res`를 확장해서 만든다.
+
+
+```js
+require('should');
+const Response = require('./Response');
+
+describe('Response', () => {
+  it('생성 인자가 없으면 에러를 던진다', () => {
+    should(() => Response()).throw()
+  })
+
+  describe('반환 객체', () => {
+    let res
+
+    beforeEach(() => {
+      res = Response({})
+    })
+
+    it('status 메소드를 노출한다', () => {
+      res.should.have.property('status')
+      should(typeof res.status).be.equal('function')
+    })
+
+    it('set 메소드를 노출한다', () => {
+      res.should.have.property('set')
+      should(typeof res.set).be.equal('function')
+      should(res.set.length).be.equal(2);
+    })
+
+    it('send 메소드를 노출한다', () => {
+      res.should.have.property('send')
+      should(typeof res.send).be.equal('function')
+    })
+
+    it('json 메소드를 노출한다', () => {
+      res.should.have.property('json')
+      should(typeof res.json).be.equal('function')
+    })
+  })
+})
+```
+
+- status(code): 상태 코드를 설정 ex) 200
+- set(key, value): 헤더 값을 key/value로 설정 ex) Content-Type, text/html
+- send(text): 문자 응답 
+- json(object): 제이슨 응답
+
+```js
+const Response = res => {
+  if (!res) throw Error('res is required');
+
+  res.status = res.status || (code => {
+    res.statusCode = code;
+    return res;
+  })
+
+  res.set = res.set || ((key, value) => {
+    res.setHeader(key, value);
+    return res;
+  })
+
+  res.send = res.send || (text => {
+    if (!res.getHeader('Content-Type')) {
+      res.setHeader('Content-Type', 'text/plain');
+    }
+    res.end(text);
+  })
+
+  res.json = res.json || (data => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  })
+
+  return res;
+};
+
+module.exports = Response;
+```
+
+- Response 모듈은 기존의 res객체를 인자로 받는다.
+- 상태값을 설정하는 `status()` `res`는 이미 사용하고 있는 객체이기 때문에 키를 덮어 쓰지 않기 위해 || 연산자 사용
+- `statusCode` 설정 후 그대로 `res` 반환
+- 함수체이닝 기법
+
+``` js
+const Response = require('./Response')
+
+const Application = () => {
+  const _middleware = Middleware();
+
+  const _server = http.createServer((req, res) => {
+    _middleware.run(req, Response(res)) // Response 객체로 교체 
+  })
+```
+
+- `req,res` 객체 사용하는 부분은 미들웨어 구동 메소드인 `run()`부분
+
+```js
+// index.listPosts()
+const path = require('path');
+const fs = require('fs');
+
+const listPosts = () => (req, res, next) => {
+    const publicPath = path.join(__dirname, '../public')
+    
+    fs.readFile(`${publicPath}/index.html`, (err, data) => {
+        if (err) throw err
+    
+        res.status(200).set('Content-Type', 'text/html').send(data)
+    })
+}
+
+module.exports = {
+    listPosts
+}
+// apiPost.index()
+const posts = [{
+        title: 'post 3',
+        body: 'this is post 3'
+    },
+    {
+        title: 'post 2',
+        body: 'this is post 2'
+    },
+    {
+        title: 'post 1',
+        body: 'this is post 1'
+    },
+]
+
+// const index = () => (req, res, next) => {
+//     res.setHeader('Content-Type', 'application/json')
+//     res.end(JSON.stringify(posts))
+// }
+
+const index = () => (req, res, next) => {
+    res.status(200).json(posts);
+  }
+
+module.exports = {
+    index
+}
+
+/*
+  res.status = res.status || (code => {
+    res.statusCode = code;
+    return res;
+  })
+
+  res.status가 없으면 code 인자로 하는 함수로 작업후 res 리턴
+*/
+```
+
+- 코드를 더 단순하게 만들고 싶다면 자주 사용하는 200 상태 코드는 기본 인자값으로 설정하는 방법도 있겠네요.
+- 응답 처리를 개선하기위해 Response 모듈을 만들었습니다.
+- stauts(), set(), send(), json() 메소드를 추가로 지원합니다.
+

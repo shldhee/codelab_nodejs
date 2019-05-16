@@ -18,4 +18,16 @@ describe('Application', () => {
       should(spy.called).be.equal(true) // spy를 통해 listen함수가 호출되었는지 확인하는 곳
     })
   })
+
+  describe('use()', () => {
+    it('Middleware 모듈 인스턴스의 add() 메소드를 실행한다', () => {
+      const spy = sinon.spy();
+      app._middleware.add = spy;
+      const mw1 = () => null;
+      
+      app.use(mw1);
+
+      should(spy.called).be.equal(true);
+    })
+  })
 })

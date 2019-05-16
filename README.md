@@ -728,4 +728,79 @@ module.exports = Middleware;
 
 # 9장
 
-## 
+- 어려워지기 시작한다..
+
+## Middleware로 Application.user() 메소드 구현
+
+- 어플리케이션 미들웨어 함수 등록을 `Application.use()` 메소드가 그 역할을 하도록 한다.
+- 이 메소드는 미들웨어의 `add()`를 호출해야 한다.
+
+```js
+// Application.secp.js
+  describe('use()', () => {
+    it('Middleware 모듈 인스턴스의 add() 메소드를 실행한다', () => {
+      const spy = sinon.spy();
+      app._middleware.add = spy;
+      const mw1 = () => null;
+
+      app.use(mw1);
+
+      should(spy.called).be.equal(true);
+    })
+  })
+```
+
+- `use()`는 `Middleware의 add() 메소드를 실행한다`는 테스트 케이스
+- 어플리케이션 내 내부 변수인 `_middleware`의 `add`에 스파이를 심었습니다.
+- `app.use()` 실행하면 이 스파이 함수가 실행되었는지 점검한다.
+
+
+```js
+const http = require('http')
+const debug = require('../utils/debug')('Application')
+const Middleware = require('./Middleware'); // 미들웨어 불러오기
+
+const Application = () => {
+  const _middleware = Middleware(); // 미들웨어 인스턴스 생성
+  const _server = http.createServer((req, res) => {
+    _middleware.run(req, res) // 미들웨어 모두 실행
+  });
+
+  const use = fn => _middleware.add(fn); // 미들웨어 추가
+
+  const listen = (port = 3000, hostname = '127.0.0.1', fn) => {
+    _server.listen(port, hostname, fn)
+    debug('server is listening')
+  }
+
+  return {
+    _middleware,
+    _server,
+    use,
+    listen
+  }
+}
+
+module.exports = Application
+```
+
+- Application <- Middleware (Express.js) 구현하여 -> app.js
+
+
+```js
+const path = require('path')
+// ...
+
+const serveStatic = () => (req, res, next) => { // 미들웨어 함수 인터페이스
+   const mimeType = {
+     '.ico': 'image/x-icon',
+    // ...
+    if (Object.keys(mimeType).includes(ext)) {
+      // ...
+    } else {
+      next() // 다음 미들웨어를 수행
+    }
+ }
+
+module.exports = serveStatic;
+```

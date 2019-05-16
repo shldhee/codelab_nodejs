@@ -534,6 +534,198 @@ const _server = http.createServer((req, res) => {
 
 # 8장
 
+## 미들웨어
+
+- 서버는 요청에서부터 응답까지 하나의 흐름을 가지고 있습니다.
+- 요청과 응답 사이에 실행되는 함수목록을 "미들웨어 함수"라고 하겠습니다.
+  - 요청한 클라이언트에게 응답(response)
+  - 다음 미들웨어 함수 호출(next) 이때는 함수의 결과값을 다음 미들웨어 함수의 인자로 전달
+- 어플리케이션 단에서 미들웨어 함수를 등록하는 부분과 요청이 올대 등록된 미들웨어 함수 모두를 실행하는 것이 중요 알고리즘
+
+
+```js
+//미들웨어 등록
+
+const middlewares = []
+const use = fn => middlewares.push(fn)
+
+//미들웨어 실행
+let next = null
+const run = () => middlewares.forEach(mw => {
+  next = mw(next)
+})
+```
+
+## Middleware 모듈
+
+```js
+require('should');
+const sinon = require('sinon');
+const Middleware = require('./Middleware');
+
+describe('Middleware', () => {
+  let middleware;
+  beforeEach(() => { // describe가 실행될때마다 실행
+    middleware = Middleware();
+  })
+
+  it('초기 미들웨어 갯수는 0개이다', () => {
+    middleware._middlewares.length.should.be.equal(0);
+  })
+
+  describe('add()', () => {
+    it('배열에 미들웨어 함수를 추가한다.', () => {
+      const fns = [() => {}, () => {}, () => {}]
+
+      fns.forEach(fn => middleware.add(fn));
+
+      middleware._middlewares.length.should.be.equal(fns.length)
+    })
+  })
+
+  describe('run()', () => {
+    it('미들웨어 함수를 실행한다', () => {
+      const stub = {
+        mw1() {},
+        mw2() {}
+      }
+
+      /*
+        stub 함수 이용, stub은 진짜처럼 동작하는 테스트용 메소드
+        callsFake로 가짜 함수를 선언해 테스트때만 동작하게 한다.
+      */
+      sinon.stub(stub, 'mw1').callsFake((req,res,next) => next());
+      sinon.stub(stub, 'mw2').callsFake((req,res,next) => next());
+
+      // 위에서 stub들을 담는다.
+      const fns = [
+        stub.mw1,
+        stub.mw2
+      ]
+
+      // 반복하면서 add 메소드 실행
+      fns.forEach(fn => middleware.add(fn));
+
+      middleware.run();
+
+      // fn.called는 stub함수로 만든 메소드이며 호출되면 true, 안되면 false
+      fns.forEach(fn => {
+        should(fn.called).be.equal(true)
+      })
+    })
+
+    it('next를 호출하지 않는 미들웨어가 있으면 함수 체인을 즉시 중지한다', () => {
+      const stub = {
+        mw1() {},
+        mwWillStop() {},
+        mw2() {}
+      }
+
+      sinon.stub(stub, 'mw1').callsFake((req, res, next) => next());
+      sinon.stub(stub, 'mwWillStop').callsFake(() => null);
+      sinon.stub(stub, 'mw2').callsFake((req, res, next) => next());
+
+      const fns = [
+        stub.mw1,
+        stub.mwWillStop,
+        stub.mw2,
+      ]
+
+      fns.forEach(fn => middleware.add(fn));
+
+      middleware.run();
+
+      fns.forEach((fn ,idx) => {
+        const shouldInvoked = idx < 2
+        console.log('shouldInvoked',shouldInvoked,"idx", idx);
+        should(fn.called).be.equal(shouldInvoked)
+      })
+    })
+
+    it('에러 발생시 에러 미들웨어만 실행한다', () => {
+      const stub = {
+        mw1(req, res, next) {},
+        mwWillThrow(req, res, next) {}, // 에러 발생 미들웨어
+        mw2(req, res, next) {},
+        mwWillCatchError(err, req, res, next) {} // 에러 처리 미들웨어
+      };
+      sinon.stub(stub, 'mw1').callsFake((req, res, next) => next());
+      sinon.stub(stub, 'mwWillThrow').callsFake((req, res, next) => next(Error()));
+      sinon.stub(stub, 'mw2').callsFake((req, res, next) => next());
+      sinon.stub(stub, 'mwWillCatchError').callsFake((err, req, res, next) => null);
+
+      const fns = [
+        stub.mw1,
+        stub.mwWillThrow,
+        stub.mw2,
+        stub.mwWillCatchError,``
+      ]
+      fns.forEach(fn => middleware.add(fn));
+
+      middleware.run();
+
+      fns.forEach((fn, idx) => {
+        const shouldInvoked = idx !== 2;
+        should(fn.called).be.equal(shouldInvoked)
+      });
+    })
+  })
+});
+
+```
+
+- 인자 갯수에 따라 분류
+- 일반 미들웨어: 인자 세 개 (req, res, next)
+- 에러 미들웨어: 인자 네 개 (err, req, res, next)
+
+``` js
+const debug = require('../utils/debug')('Middleware');
+
+const Middleware = () => {
+    const _middlewares = [];
+    let _req, _res;
+
+    const add = fn => {
+        _middlewares.push(fn)
+    }
+
+    const run = (req, res) => {
+        _req = req;
+        _res = res;
+
+        _run(0);
+    }
+    const _run = (i, err) => {
+           if (i < 0 || i >= _middlewares.length) return;
+
+        debug(`i:${i} _middlewares:${_middlewares.length}`)
+
+        const nextMw = _middlewares[i]
+        const next = (err) => _run(i + 1, err)
+
+        if(err) {
+            const isNextErrorMw = nextMw.length === 4
+
+            return isNextErrorMw ? nextMw(err, _req, _res, next) : _run(i + 1, err)
+        }
+
+        nextMw(_req, _res, next);
+    }
+
+    return {
+        _middlewares,
+        add,
+        run
+    }
+}
+
+module.exports = Middleware;
+```
+
+- 미들웨어는 비동기 로직을 다루기 위한 패턴입니다.
+- 미들웨어는 요청에서 응답 사이에서 실행되는 함수들의 목록이며 순차적으로 실행됩니다.
+- 에러 미들웨어는 인자가 4개이며 어떤 미들웨어에서든이 에러가 발생되면 곧장 실행됩니다.
+
+# 9장
+
 ## 
-
-

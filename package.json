@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node bin",
-    "test": "mocha './utils/**/*.spec.js*'"
+    "test": "mocha './src/**/*.spec.js*'"
   },
   "keywords": [],
   "author": "",

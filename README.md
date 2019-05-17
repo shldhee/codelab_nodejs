@@ -538,7 +538,7 @@ const _server = http.createServer((req, res) => {
 - 정적 파일을 모듈로 리팩토링하는 시도를 했습니다.
 - 비동기 로직을 제어하는 현 구조의 한계를 짚어 봤습니다.?
 
-# 8장
+## 8장
 
 ### 미들웨어
 
@@ -732,7 +732,7 @@ module.exports = Middleware;
 - 미들웨어는 요청에서 응답 사이에서 실행되는 함수들의 목록이며 순차적으로 실행됩니다.
 - 에러 미들웨어는 인자가 4개이며 어떤 미들웨어에서든이 에러가 발생되면 곧장 실행됩니다.
 
-# 9장
+## 9장
 
 - 어려워지기 시작한다..
 
@@ -811,7 +811,7 @@ const serveStatic = () => (req, res, next) => { // 미들웨어 함수 인터페
 module.exports = serveStatic;
 ```
 
-# 10장
+## 10장
 
 ### Logger Middleware
 
@@ -992,7 +992,7 @@ module.exports = {
 - 경로에 따라 컨트롤러를 설정하는 use() 메소드를 구현했습니다.
 - 어플리케이션 코드를 단순하게 개선하였습니다.
 
-# 12장
+## 12장
 
 ### 포스트 조회 API
 
@@ -1082,7 +1082,7 @@ api.getPosts()
 
 - `reduce`에서 html은 누적되면서 리턴해주고 post는 배열 요소이다.
 
-# 13장
+## 13장
 
 ### 응답 객체
 
@@ -1248,3 +1248,169 @@ module.exports = {
 - 응답 처리를 개선하기위해 Response 모듈을 만들었습니다.
 - stauts(), set(), send(), json() 메소드를 추가로 지원합니다.
 
+## 14장
+
+### 요청 객체 쿼리스트링 요청
+
+- `/api/posts`에 쿼리문자열 추가 `?limit=2&page=1`
+- `_req.url === nextMw._path;` 가 일치하지 않아 다음 미들웨어 함수가 실행되서 Not Found
+
+```js
+if (nextMw._path) {
+  const pathMatched = _req.url === nextMw._path; // 바로 이 부분 !!!
+  return pathMatched ? nextMw(_req, _res, next) : _run(i + 1)
+}
+```
+
+### Request 모듈
+
+- HTTP에서 요청 URL의 양식은 `Protocol + Domain + Path + QueryString + Body`
+- 여태까지 `req.url`은 `path+querysting`으로 이루어져있어서 문제가 발생
+- req를 `path, query`를 속성을 만들자
+  - `path` 비교 가능하고 `req.query`객체를 통해 `limit, page`접근 가능
+
+```js
+req.path = "/api/posts"
+req.query = {
+  limit: "2",
+  page: "1"
+}
+```
+
+```js
+// Request.spec.js
+require('should');
+const Response = require('./Response');
+
+describe('Response', () => {
+  it('생성 인자가 없으면 에러를 던진다', () => {
+    should(() => Response()).throw()
+  })
+
+  describe('반환 객체', () => {
+    let res
+
+    // 모듈 생성 코드는 각 테스트 케이스에서 중복으로 사용될 것이므로 beforeEach()에서 기술하였습니다.
+    beforeEach(() => {
+      res = Response({})
+    })
+
+    it('status 메소드를 노출한다', () => {
+      res.should.have.property('status')
+      should(typeof res.status).be.equal('function')
+    })
+
+    it('set 메소드를 노출한다', () => {
+      res.should.have.property('set')
+      should(typeof res.set).be.equal('function')
+      should(res.set.length).be.equal(2);
+    })
+
+    it('send 메소드를 노출한다', () => {
+      res.should.have.property('send')
+      should(typeof res.send).be.equal('function')
+    })
+
+    it('json 메소드를 노출한다', () => {
+      res.should.have.property('json')
+      should(typeof res.json).be.equal('function')
+    })
+  })
+})
+```
+
+### Request 모듈
+
+```js
+// Request.js
+const Request = req => {
+    if (!req) throw Error('req is required')
+    
+    // req.url = "/api/posts?limit=3&page=2"
+    const partials = req.url.split('?')
+    // ["/api/posts", "limit=3&page=2"]
+  
+    const path = partials[0] || '/'; // ["/api/posts"] || '/' 
+    req.path = req.path || path;
+  
+    if (!partials[1] || !partials[1].trim()) return req;
+    
+  
+    const qs = partials[1].split('&').reduce((obj, p) => {
+      const frag = p.split('=')
+      obj[frag[0]] = frag[1]
+      return obj
+    }, {})
+  
+    // split('&') -> ["limit=2","page=1"]
+    // split('=') -> ["limit","2"] // frag[0,1]
+    // frag[0] = "limit"
+    // obj[frag[0]] -> obj["limit"] = 2
+    // obj = {
+    //   limit : 2,
+    //   page: 1
+    // }
+
+    req.query = req.params || qs
+    return req
+  }
+  
+  module.exports = Request
+  
+```
+
+```js
+!"  " || !"   ".trim(); // true
+!"  "; // false
+```
+
+- Request 모듈 `Application`에 적용하고 `Middleware`에서 사용
+
+
+``` js
+// Application.js
+const Request = require('./Request');
+
+const Application = () => {
+  const _server = http.createServer((req, res) => {
+    _middleware.run(Request(req), Response(res)) // Request 객체로 교체 
+  });
+
+// Middleware.js
+  if (nextMw._path) {
+      const pathMatched = _req.path === nextMw._path // 경로만 체크 
+      return pathMatched ? nextMw(_req, _res, next) : _run(i + 1)
+     }
+```
+
+- 포스트 갯수, 페이지 수 요청 처리
+- `?limit=2&page=1`
+- 포스트는 2개만 보여주고 1페이지르 보여달라
+  - 만약 포스트가 6개 있으면 앞에 1,2만 불러오기
+- `?limit=2&page=2`
+- 포스트는 2개만 보여주고 2페이지르 보여달라
+  - 만약 포스트가 6개 있으면 앞에 3,4만 불러오기
+
+```js
+const index = () => (req, res, next) => {
+    const limit = req.query.limit * 1 || 2 // 포스트 갯수
+    const page = req.query.page * 1 || 1 // 페이지 요청 수
+  
+    const begin = (page - 1) * limit // page가 1이면 slice가 0부터 시작한다. 만약 2이면 * limit이 포스트 개수 계산되므로 거기서부터 데이터 받게 한다.
+    const end = begin + limit // 시작이 정해지면 거기다가 최대 포스트 갯수만 더하면 불러올 데이터 끝
+  
+    res.json(posts.slice(begin, end))
+    // slice end는 end-1 까지 자른다
+   }
+```
+
+- 요청 정보에 쉽게 접근하게 위한 Request 모듈을 만들었습니다.
+- req.path, req.
+
+## 15강
+
+### 라우터 Get, Post
+
+---
+
+#### 강의는 다 봤지만 정리를 못했다. 나중에 다시 한번 보면서 정리하기.

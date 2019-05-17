@@ -2,11 +2,12 @@ const http = require('http')
 const debug = require('../utils/debug')('Application')
 const Middleware = require('./Middleware');
 const Response = require('./Response')
+const Request = require('./Request')
 
 const Application = () => {
   const _middleware = Middleware();
   const _server = http.createServer((req, res) => {
-    _middleware.run(req, Response(res))
+    _middleware.run(Request(req), Response(res))
   });
 
   const use = (path, fn) => {
@@ -20,6 +21,18 @@ const Application = () => {
     _middleware.add(fn)
   };
 
+  const get = (path, fn) => {
+    if (!path || !fn) throw Error('path and fn is required')
+    fn._method = 'get'
+    use(path, fn)
+  }
+
+  const post = (path, fn) => {
+    if (!path || !fn) throw Error('path and fn is required')
+    fn._method = 'post'
+    use(path, fn)
+  }
+
   const listen = (port = 3000, hostname = '127.0.0.1', fn) => {
     _server.listen(port, hostname, fn)
     debug('server is listening')
@@ -29,7 +42,9 @@ const Application = () => {
     _middleware,
     _server,
     use,
-    listen
+    listen,
+    get,
+    post
   }
 }
 
